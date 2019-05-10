@@ -7,30 +7,30 @@
     2. Boot a livecd of your choice
     3. Extract ROM
 
-```
-$ echo 1 > /sys/bus/pci/devices/0000:00:02.0/rom
-$ cat /sys/bus/pci/devices/0000:00:02.0/rom > /tmp/Intel-Iris-Plus-650.rom
-$ echo 0 > /sys/bus/pci/devices/0000:00:02.0/rom
+```bash
+echo 1 > /sys/bus/pci/devices/0000:00:02.0/rom
+cat /sys/bus/pci/devices/0000:00:02.0/rom > /tmp/Intel-Iris-Plus-650.rom
+echo 0 > /sys/bus/pci/devices/0000:00:02.0/rom
 ```
 
     4. Fix the ROM
 
-```
+```bash
 $ git clone https://github.com/awilliam/rom-parser.git && cd rom-parser
 $ make
 gcc -o rom-parser rom-parser.c
 gcc -DFIXER -o rom-fixer rom-parser.c
 $ cp /tmp/Intel-Iris-Plus-650.rom ./Intel-Iris-Plus-650.rom
-$ ./rom-fixer Intel-Iris-Plus-650.rom-original 
+$ ./rom-fixer Intel-Iris-Plus-650.rom-original
 Valid ROM signature found @0h, PCIR offset 40h
-	PCIR: type 0 (x86 PC-AT), vendor: 8086, device: 0406, class: 030000
-	PCIR: revision 3, vendor revision: 0
+  PCIR: type 0 (x86 PC-AT), vendor: 8086, device: 0406, class: 030000
+  PCIR: revision 3, vendor revision: 0
 
 Modify vendor ID 8086? (y/n): n
 Modify device ID 0406? (y/n): y
 New device ID: 5927
 Overwrite device ID with 5927? (y/n): y
-	Last image
+  Last image
 ROM checksum is invalid, fix? (y/n): y
 ```
 
@@ -59,6 +59,7 @@ Copy the ISO to `/var/lib/libvirt/images/` of the host.
   * 1 TB SSD
 
 ## Firmware (BIOS/UEFI)
+
 * BIOS Configuration
   * Legacy mode (EFI mode untested)
 
@@ -68,9 +69,9 @@ Copy the ISO to `/var/lib/libvirt/images/` of the host.
 
 Install `qemu`, `libvirt`, tools
 
-```
-$ sudo apt-get install -y qemu-system vim-nox libvirt-daemon-system apparmor-utils
-$ sudo systemctl enable libvirtd
+```bash
+sudo apt-get install -y qemu-system vim-nox libvirt-daemon-system apparmor-utils
+sudo systemctl enable libvirtd
 ```
 
 1. Update `grub`
@@ -89,17 +90,17 @@ $ sudo systemctl enable libvirtd
 
 Running these commands will disable the screen output from the NUC. This is expected. It is recommended to proceed from here on using ssh and pubkey authentication, which almost makes remote management via `virt-manager` easier.
 
-```
-$ echo 0 > /sys/class/vtconsole/vtcon1/bind
-$ rmmod snd_hda_intel
-$ rmmod i915
+```bash
+echo 0 > /sys/class/vtconsole/vtcon1/bind
+rmmod snd_hda_intel
+rmmod i915
 ```
 
 If using qemu directly, you will need to manually manage the `vfio-pci` devices.
 
 Pass the VGA device to `vfio-pci`
 
-```
+```bash
 modprobe vfio-pci
 echo "8086 5927" > /sys/bus/pci/drivers/vfio-pci/new_id
 ```
@@ -118,7 +119,7 @@ AppArmor does not play nicely with libvirt. TOOD: Make it play nicely. Interim:
 
 This example runs qemu without a NIC. You may need to passthrough a USB device to send commands to the guest as well.
 
-```
+```bash
 qemu-system-x86_64 \
     -enable-kvm \
     -m 16384 \
@@ -139,6 +140,7 @@ Kill the qemu process.
 ## Guest Configuration
 
 ### libvirt
+
 This example sets up libvirt to run the guest.
 
 #### virt-manager
@@ -151,7 +153,7 @@ You might be asked to start the default network. Do so and run `virsh net-autost
 
 `apparmor` on ubuntu may be overly cautious, causing errors such as
 
-```
+```bash
 apparmor="DENIED" operation="open" profile="libvirt-67bd587e-b982-4813-a875-1b54e1f37e5e" name="/var/lib/libvirtd/images/Intel-Iris-Plus-650.rom"
 ```
 
@@ -222,7 +224,7 @@ Modify the Disk 1 disk bus from SATA to SCSI. Enable discard and "detect zeroes"
 
 Remove the CD-ROMs altogether.
 
-# Features
+## Features
 
 * Windows can be started/shutdown/started and rebooted without issue.
 * The VM can be managed quite easily via ssh+qemu using virt-manager.
