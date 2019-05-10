@@ -9,11 +9,32 @@
 
 ```
 $ echo 1 > /sys/bus/pci/devices/0000:00:02.0/rom
-$ cat /sys/bus/pci/devices/0000:00:02.0/rom > /tmp/Intel-IGD-Iris-650.rom
+$ cat /sys/bus/pci/devices/0000:00:02.0/rom > /tmp/Intel-Iris-Plus-650.rom
 $ echo 0 > /sys/bus/pci/devices/0000:00:02.0/rom
 ```
 
-Copy `Intel-IGD-Iris-650.rom` to `/var/lib/libvirt/images/` of the host.
+    4. Fix the ROM
+
+```
+$ git clone https://github.com/awilliam/rom-parser.git && cd rom-parser
+$ make
+gcc -o rom-parser rom-parser.c
+gcc -DFIXER -o rom-fixer rom-parser.c
+$ cp /tmp/Intel-Iris-Plus-650.rom ./Intel-Iris-Plus-650.rom
+$ ./rom-fixer Intel-Iris-Plus-650.rom-original 
+Valid ROM signature found @0h, PCIR offset 40h
+	PCIR: type 0 (x86 PC-AT), vendor: 8086, device: 0406, class: 030000
+	PCIR: revision 3, vendor revision: 0
+
+Modify vendor ID 8086? (y/n): n
+Modify device ID 0406? (y/n): y
+New device ID: 5927
+Overwrite device ID with 5927? (y/n): y
+	Last image
+ROM checksum is invalid, fix? (y/n): y
+```
+
+    5. Copy `Intel-Iris-Plus-650.rom` to `/var/lib/libvirt/images/` of the host.
 
 2. You need to download a Windows 10 ISO
 
@@ -48,7 +69,7 @@ Copy the ISO to `/var/lib/libvirt/images/` of the host.
 Install `qemu`, `libvirt`, tools
 
 ```
-$ sudo apt-get install -y qemu-system vim-nox libvirt-daemon-system
+$ sudo apt-get install -y qemu-system vim-nox libvirt-daemon-system apparmor-utils
 $ sudo systemctl enable libvirtd
 ```
 
@@ -56,8 +77,7 @@ $ sudo systemctl enable libvirtd
 
 2. Set the following in `/etc/default/grub`
 
-`GRUB_CMDLINE_LINUX_DEFAULT="quiet splash kvm.ignore_msrs=1 intel_iommu=on iommu=pt"
-`
+`GRUB_CMDLINE_LINUX_DEFAULT="quiet splash kvm.ignore_msrs=1 intel_iommu=on iommu=pt"`
 
 `$ sudo update-grub`
 
@@ -88,7 +108,7 @@ echo "8086 5927" > /sys/bus/pci/drivers/vfio-pci/new_id
 
 AppArmor does not play nicely with libvirt. TOOD: Make it play nicely. Interim:
 
-` aa-complain libvirtd`
+`$ aa-complain libvirtd`
 
 6. Create VM disk
 
@@ -107,7 +127,7 @@ qemu-system-x86_64 \
     -cdrom /var/lib/libvirt/images/Win10_1809Oct_v2_English_x64.iso \
     -hda /var/lib/libvirt/images/win10.qcow2 \
     -vga none -nographic \
-    -device vfio-pci,host=00:02.0,id=hostdev0,bus=pci.0,addr=0x2,rombar=1,romfile=/var/lib/libvirt/images/Intel-IGD-Iris-650.rom \
+    -device vfio-pci,host=00:02.0,id=hostdev0,bus=pci.0,addr=0x2,rombar=1,romfile=/var/lib/libvirt/images/Intel-Iris-Plus-650.rom \
     -vnc :2 \
     -nic none
 ```
@@ -127,6 +147,16 @@ TODO: Use `virt-install`?
 
 1. Create a new guest OS. Set the PC type to i440, instead of the default q35 for Windows 10 guests. In virt-manager, attach the PCI device 0000:00:02. As IDE CD-ROM drives, add both ISOs. Update the boot-order to boot the Windows install ISO first. Change the hard disk "Disk 1" to SATA if it is not already. Ensure a "Controller Virtio SCSI" is present.
 
+You might be asked to start the default network. Do so and run `virsh net-autostart default`.
+
+`apparmor` on ubuntu may be overly cautious, causing errors such as
+
+```
+apparmor="DENIED" operation="open" profile="libvirt-67bd587e-b982-4813-a875-1b54e1f37e5e" name="/var/lib/libvirtd/images/Intel-Iris-Plus-650.rom"
+```
+
+Using `aa-complain libvirtd` does not fix this, nor does the longer command that includes the KVM UUID. A hacky, insecure workaround is to put the ROM file in /var/tmp, update the XML to the new path, then modify `/etc/apparmor.d/abstractions/libvirt-qemu` to allow read access to `/var/tmp` by changing `/{,var/}tmp/ r,` to `/{,var/}tmp/* r,`.
+
 2. Once the guest is created the XML must be manually changed.
 
 Ensure rom bar is enabled and the ROM file is known.
@@ -138,7 +168,7 @@ Ensure rom bar is enabled and the ROM file is known.
         <address domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
       </source>
       <alias name='hostdev0'/>
-      <rom bar='on' file='/var/lib/libvirt/images/Intel-IGD-Iris-650.rom'/>
+      <rom bar='on' file='/var/lib/libvirt/images/Intel-Iris-Plus-650.rom'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
     </hostdev>
 ```
@@ -161,9 +191,9 @@ It is recommended to perform USB passthrough during the first setup phase. See b
 
 4. Install Windows 10
 
-Install Windows 10. Install the qemu-guest-agent from the virtio ISO. Install drivers for all devices not bound to one in Device Manager.
+Install Windows 10. Install the `qemu-guest-agent` from the virtio ISO. Install drivers for all devices not bound to one in Device Manager.
 
-Note: It took a few reboots for the Intel IGD to be properly recognized (it was a "Basic" display device at first). If host reboots do not work, perform all Windows updates.
+Note: The Intel IGD is initially recognized as a "Microsoft Basic Display Adapter" device. Manually updating the device driver should make it seen as "Intel(R) Iris(R) Plus Graphics 650". If host reboots do not work, perform all Windows updates. Pray.
 
 5. Update hardware configuration
 
@@ -188,7 +218,11 @@ Attach the following PCI devices in virt-manager:
     </hostdev>
 ```
 
-Modify the Disk 1 disk bus from SATA to SCSI.
+Modify the Disk 1 disk bus from SATA to SCSI. Enable discard and "detect zeroes" (options under "Performance Options" for recent virt-manager relases.)
 
 Remove the CD-ROMs altogether.
 
+# Features
+
+* Windows can be started/shutdown/started and rebooted without issue.
+* The VM can be managed quite easily via ssh+qemu using virt-manager.
