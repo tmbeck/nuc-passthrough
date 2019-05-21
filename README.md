@@ -1,5 +1,9 @@
 # Intel NUC NUC7i7BNH IGD Passthrough
 
+In this example, we successfully passthrough the USB XHCI controller and Intel IGD to a virtual machine. This is known as legacy mode passthrough, or GVT-d, where the guest is given complete control over the IGD.
+
+The [GVT-d Setup Guide](https://github.com/intel/gvt-linux/wiki/GVTd_Setup_Guide) may be useful. For GVT-g, where virtualized GPU's are made available to guests for hardware acceleration, see [Intel GVT-g](https://wiki.archlinux.org/index.php/Intel_GVT-g).
+
 ## Requirements
 
 1. You need to extract the IGD ROM
@@ -50,6 +54,8 @@ Copy the ISO to `/var/lib/libvirt/images/` of the host.
 
 Copy the ISO to `/var/lib/libvirt/images/` of the host.
 
+4. You need to revert to UEFI in the BIOS
+
 ## Host Configuration
 
 ### Hardware
@@ -81,6 +87,8 @@ sudo systemctl enable libvirtd
 `GRUB_CMDLINE_LINUX_DEFAULT="quiet splash kvm.ignore_msrs=1 intel_iommu=on iommu=pt"`
 
 `$ sudo update-grub`
+
+NOTE: Without `kvm.ignore_msrs=1`, applications which read unhandled MSRs will cause KVM guests to crash (BSOD).
 
 3. Reboot
 
@@ -277,3 +285,5 @@ IOMMU Group 9 00:1f.6 Ethernet controller [0200]: Intel Corporation Ethernet Con
 IOMMU Group 10 3a:00.0 Network controller [0280]: Intel Corporation Wireless 8265 / 8275 [8086:24fd] (rev 78)
 IOMMU Group 11 3b:00.0 Unassigned class [ff00]: Realtek Semiconductor Co., Ltd. RTS5229 PCI Express Card Reader [10ec:5229] (rev 01)
 ```
+
+Note that many of the devices are in their own IOMMU groups, making it easier to perform passthrough. This arrangement will change based on the hardware and the BIOS configuration.

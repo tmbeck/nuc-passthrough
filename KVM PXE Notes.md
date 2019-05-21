@@ -1,8 +1,6 @@
-# PXE Booting
+# PXE Booting in KVM
 
-## KVM
-
-### i440, BIOS, PXE boot
+## i440, BIOS, PXE boot
 
 File download order example:
 
@@ -29,7 +27,27 @@ Key files:
 * `menu.c32` the menu system binary
 * `pxelinux.cfg/default` the menu layout and configuration
 
-### q35, OVMF (UEFI), PXE Boot
+Example of the `default` configuration file for booting MemTest86+
+
+```bash
+default menu.c32
+prompt 1
+timeout 30
+MENU TITLE PXE Menu
+
+###################
+## Non-UEFI only ##
+###################
+
+LABEL memtest
+  MENU LABEL MemTest86+ 5.01
+  MENU default
+  KERNEL /path/to/memtest86+-5.01
+```
+
+In this example, `/path/to/memtest86+-5.01` is relative to the root of the tftpd binary, typically `/var/lib/tftpboot`.
+
+## q35, OVMF (UEFI), PXE Boot
 
 File download order example:
 
@@ -63,3 +81,4 @@ uefi/grubx64.efi
 /EFI/centos/x86_64-efi/terminal.lst
 /EFI/centos/grub.cfg
 ```
+
