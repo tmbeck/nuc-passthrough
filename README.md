@@ -228,3 +228,52 @@ Remove the CD-ROMs altogether.
 
 * Windows can be started/shutdown/started and rebooted without issue.
 * The VM can be managed quite easily via ssh+qemu using virt-manager.
+
+## IOMMU Groups
+
+IOMMU groups are based on the hardware architecture of the system. In the case of the NUC7i7BNH, most devices are either isolated or behind the Low Pin Count (LPC) Controller at `1f.0`. In these examples, we explicilty passthrough the Iris Plus Graphics 650 at `02.0` and the USB controller at `16.0`. 
+
+```bash
+$ lspci -t -nn -v
+-[0000:00]-+-00.0  Intel Corporation Xeon E3-1200 v6/7th Gen Core Processor Host Bridge/DRAM Registers [8086:5904]
+           +-02.0  Intel Corporation Iris Plus Graphics 650 [8086:5927]
+           +-08.0  Intel Corporation Xeon E3-1200 v5/v6 / E3-1500 v5 / 6th/7th Gen Core Processor Gaussian Mixture Model [8086:1911]
+           +-14.0  Intel Corporation Sunrise Point-LP USB 3.0 xHCI Controller [8086:9d2f]
+           +-14.2  Intel Corporation Sunrise Point-LP Thermal subsystem [8086:9d31]
+           +-16.0  Intel Corporation Sunrise Point-LP CSME HECI #1 [8086:9d3a]
+           +-17.0  Intel Corporation Sunrise Point-LP SATA Controller [AHCI mode] [8086:9d03]
+           +-1c.0-[01-39]--
+           +-1c.5-[3a]----00.0  Intel Corporation Wireless 8265 / 8275 [8086:24fd]
+           +-1c.7-[3b]----00.0  Realtek Semiconductor Co., Ltd. RTS5229 PCI Express Card Reader [10ec:5229]
+           +-1f.0  Intel Corporation Intel(R) 100 Series Chipset Family LPC Controller/eSPI Controller - 9D4E [8086:9d4e]
+           +-1f.2  Intel Corporation Sunrise Point-LP PMC [8086:9d21]
+           +-1f.3  Intel Corporation Sunrise Point-LP HD Audio [8086:9d71]
+           +-1f.4  Intel Corporation Sunrise Point-LP SMBus [8086:9d23]
+           \-1f.6  Intel Corporation Ethernet Connection (4) I219-V [8086:15d8]
+```
+
+```bash
+for d in /sys/kernel/iommu_groups/*/devices/*; do n=${d#*/iommu_groups/*}; n=${n%%/*}; printf 'IOMMU Group %s ' "$n"; lspci -nns "${d##*/}"; done;
+```
+
+## NUC7i7BNH
+
+```text
+IOMMU Group 0 00:00.0 Host bridge [0600]: Intel Corporation Xeon E3-1200 v6/7th Gen Core Processor Host Bridge/DRAM Registers [8086:5904] (rev 03)
+IOMMU Group 1 00:02.0 VGA compatible controller [0300]: Intel Corporation Iris Plus Graphics 650 [8086:5927] (rev 06)
+IOMMU Group 2 00:08.0 System peripheral [0880]: Intel Corporation Xeon E3-1200 v5/v6 / E3-1500 v5 / 6th/7th Gen Core Processor Gaussian Mixture Model [8086:1911]
+IOMMU Group 3 00:14.0 USB controller [0c03]: Intel Corporation Sunrise Point-LP USB 3.0 xHCI Controller [8086:9d2f] (rev 21)
+IOMMU Group 3 00:14.2 Signal processing controller [1180]: Intel Corporation Sunrise Point-LP Thermal subsystem [8086:9d31] (rev 21)
+IOMMU Group 4 00:16.0 Communication controller [0780]: Intel Corporation Sunrise Point-LP CSME HECI #1 [8086:9d3a] (rev 21)
+IOMMU Group 5 00:17.0 SATA controller [0106]: Intel Corporation Sunrise Point-LP SATA Controller [AHCI mode] [8086:9d03] (rev 21)
+IOMMU Group 6 00:1c.0 PCI bridge [0604]: Intel Corporation Sunrise Point-LP PCI Express Root Port #1 [8086:9d10] (rev f1)
+IOMMU Group 7 00:1c.5 PCI bridge [0604]: Intel Corporation Sunrise Point-LP PCI Express Root Port #6 [8086:9d15] (rev f1)
+IOMMU Group 8 00:1c.7 PCI bridge [0604]: Intel Corporation Sunrise Point-LP PCI Express Root Port #8 [8086:9d17] (rev f1)
+IOMMU Group 9 00:1f.0 ISA bridge [0601]: Intel Corporation Intel(R) 100 Series Chipset Family LPC Controller/eSPI Controller - 9D4E [8086:9d4e] (rev 21)
+IOMMU Group 9 00:1f.2 Memory controller [0580]: Intel Corporation Sunrise Point-LP PMC [8086:9d21] (rev 21)
+IOMMU Group 9 00:1f.3 Audio device [0403]: Intel Corporation Sunrise Point-LP HD Audio [8086:9d71] (rev 21)
+IOMMU Group 9 00:1f.4 SMBus [0c05]: Intel Corporation Sunrise Point-LP SMBus [8086:9d23] (rev 21)
+IOMMU Group 9 00:1f.6 Ethernet controller [0200]: Intel Corporation Ethernet Connection (4) I219-V [8086:15d8] (rev 21)
+IOMMU Group 10 3a:00.0 Network controller [0280]: Intel Corporation Wireless 8265 / 8275 [8086:24fd] (rev 78)
+IOMMU Group 11 3b:00.0 Unassigned class [ff00]: Realtek Semiconductor Co., Ltd. RTS5229 PCI Express Card Reader [10ec:5229] (rev 01)
+```
